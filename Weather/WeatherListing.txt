@@ -1,0 +1,31 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Web;
+
+namespace Weather.Models
+{
+    public class CurrentWeather
+    {
+
+        [Required(ErrorMessage = "Must Provide City Name")]
+        [StringLength(100)]
+        public string City { get; set; }
+
+        [Required(ErrorMessage = "Must Provide temperature between -50 to 50 Celsius")]
+        [Range(-55, 55)]
+        public int Temperature { get; set; }
+
+        [Required(ErrorMessage = "Must Provide wind speed between 0 to 200 Celsius")]
+        [Range(0, 200)]
+        public int WindSpeed { get; set; }
+
+        [Required(ErrorMessage = "Must Provide Weather Condition")]
+        [StringLength(100)]
+        public string WeatherCondition { get; set; }
+
+        [Required(ErrorMessage = "Must Provide Warning")]
+        public Boolean warning { get; set; }
+    }
+}

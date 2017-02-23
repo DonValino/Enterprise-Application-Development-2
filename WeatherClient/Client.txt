@@ -1,0 +1,214 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading.Tasks;
+using Weather.Models;
+
+namespace WeatherClient
+{
+    class Client
+    {
+        static async Task GetAllCityWeather()                         // async methods return Task or Task<T>
+        {
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    client.BaseAddress = new Uri("http://localhost:50076/");          // base URL for API Controller i.e. RESTFul service
+
+                    // add an Accept header for JSON
+                    client.DefaultRequestHeaders.
+                        Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));            // or application/xml
+
+                    // GET ../forum/all
+                    // get all posts
+                    HttpResponseMessage response = await client.GetAsync("/weather/all");                 // async call, await suspends until task finished            
+                    if (response.IsSuccessStatusCode)                                                   // 200.299
+                    {
+                        // read results 
+                        var posts = await response.Content.ReadAsAsync<IEnumerable<CurrentWeather>>();
+                        foreach (var post in posts)
+                        {
+                            Console.WriteLine("City: " + post.City + "\nTemperature: " + post.Temperature + "\nWeather Condition: " + post.WeatherCondition
+                                              + "\nWind Speed: " + post.WindSpeed + "\nWarning :" + post.warning + "\n");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine(response.StatusCode + " " + response.ReasonPhrase);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+        }
+
+        static async Task GetACityWeather()                         // async methods return Task or Task<T>
+        {
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    client.BaseAddress = new Uri("http://localhost:50076/");          // base URL for API Controller i.e. RESTFul service
+
+                    // add an Accept header for JSON
+                    client.DefaultRequestHeaders.
+                        Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));            // or application/xml
+
+                    HttpResponseMessage response = await client.GetAsync("/weather/city/Dublin");                 // async call, await suspends until task finished            
+
+                    // GET ../weather/city/Berlin
+                    // where the city is Berlin
+                    try
+                    {
+                        response.EnsureSuccessStatusCode();                         // throw exception if not success
+                        var post = await response.Content.ReadAsAsync<CurrentWeather>();
+                        Console.WriteLine("City: " + post.City + "\nTemperature: " + post.Temperature + "\nWeather Condition: " + post.WeatherCondition
+                                          + "\nWind Speed: " + post.WindSpeed + "\nWarning :" + post.warning + "\n");
+                    }
+                    catch (HttpRequestException e)
+                    {
+                        Console.WriteLine(e.Message);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+        }
+
+        // add a post
+        static async Task AddAsync()
+        {
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    client.BaseAddress = new Uri("http://localhost:50076/");
+                    // add an Accept header for JSON - preference for response 
+                    client.DefaultRequestHeaders.
+                        Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                    // POST /forum with a user post serialised in request body
+                    CurrentWeather cityWeather = new CurrentWeather() { City = "Dublin", Temperature = 24, WeatherCondition = "Sunny", WindSpeed = 5, warning = true };
+                    HttpResponseMessage response = await client.PostAsJsonAsync("weather", cityWeather);             // or PostAsXmlAsync
+                    if (response.IsSuccessStatusCode)                                                       // 200 .. 299
+                    {
+                        Uri postURI = response.Headers.Location;
+                        var city = await response.Content.ReadAsAsync<CurrentWeather>();
+                        Console.WriteLine("URI for new resource: " + postURI.ToString());
+                        Console.WriteLine(city + "\n");                                                              // forum post
+                    }
+                    else
+                    {
+                        Console.WriteLine(response.StatusCode + " " + response.ReasonPhrase);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+        }
+
+        // update a stock listing
+        static async Task UpdateAsync()
+        {
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    client.BaseAddress = new Uri("http://localhost:50076/");
+
+                    CurrentWeather model = new CurrentWeather() { City = "Dublin", Temperature = 24, WeatherCondition = "Sunny", WindSpeed = 5, warning = true };
+                    // Change the weather warning to false
+                    model.warning = false;
+
+                    // add an Accept header for JSON - preference for response 
+                    client.DefaultRequestHeaders.
+                        Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+
+                    // update by Put to /api/SMS/Message a listing serialised in request body
+                    HttpResponseMessage response = await client.PutAsJsonAsync("weather/update/Dublin", model);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        Console.WriteLine(response.StatusCode + " " + response.ReasonPhrase);
+                    }
+                    else
+                    {
+                        var city = await response.Content.ReadAsAsync<CurrentWeather>();
+                        Console.WriteLine("Weather for: " + city.City + " updated\n");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+        }
+
+        // delete a city
+        static async Task DeleteAsync()
+        {
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    client.BaseAddress = new Uri("http://localhost:50076/");
+
+                    // add an Accept header for JSON
+                    client.DefaultRequestHeaders.
+                        Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));            // or application/xml
+
+                    // delete Dublin
+                    // weather/delete/Dublin                                                  
+                    HttpResponseMessage response = await client.DeleteAsync("weather/delete/Dublin");
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        Console.WriteLine(response.StatusCode + " " + response.ReasonPhrase);
+                    }
+                    else
+                    {
+                        // read result 
+                        // var listing = await response.Content.ReadAsAsync<StockPrice.Models.StockListing>();
+                        //Console.WriteLine(listing.TickerSymbol + " " + listing.Price + " " + "is deleted");
+
+                        Console.WriteLine("Records Deleted.\n");
+
+                        // read result 
+                        var cities = await response.Content.ReadAsAsync<IEnumerable<CurrentWeather>>();
+                        foreach (var post in cities)
+                        {
+                            Console.WriteLine("City: " + post.City + "\nTemperature: " + post.Temperature + "\nWeather Condition: " + post.WeatherCondition
+                                          + "\nWind Speed: " + post.WindSpeed + "\nWarning :" + post.warning + "\n");
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+        }
+
+
+        static void Main(string[] args)
+        {
+            //GetAllCityWeather().Wait();
+           // GetACityWeather().Wait();
+            //AddAsync().Wait();
+            //GetAllCityWeather().Wait();
+           // UpdateAsync().Wait();
+          //  GetAllCityWeather().Wait();
+            //DeleteAsync().Wait();
+            Console.ReadLine();
+        }
+    }
+}

@@ -1,0 +1,144 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Web.Http;
+using Weather.Models;
+
+namespace Weather.Controllers
+{
+    [RoutePrefix("weather")]
+    public class WeatherController : ApiController
+    {
+        // posts for this forum - in-memory
+        static private List<CurrentWeather> citiesWeather = new List<CurrentWeather>();
+
+        // GET /forum/all
+        [Route("all")]
+        public IHttpActionResult GetAllCitiesWeather()
+        {
+            lock (citiesWeather)
+            { 
+                return Ok(citiesWeather);                                                   // 200 OK, posts serialized in response body
+            }
+        }
+
+        // GET city/Berlin
+        [Route("city/{city:alpha}")]
+        public IHttpActionResult GetByCity(string city)
+        {
+            lock (citiesWeather)
+            {
+                // LINQ query, find post for matching id
+                CurrentWeather cityWeather = citiesWeather.FirstOrDefault(p => p.City == city);
+                if (cityWeather == null)
+                {
+                    return NotFound();
+                }
+                return Ok(cityWeather);
+            }
+        }
+
+        // GET warning/Berlin
+        [Route("warning/{city:alpha}")]
+        public IHttpActionResult GetWarningByCity(string city)
+        {
+            lock (citiesWeather)
+            {
+                // LINQ query, find post for matching id
+                CurrentWeather cityWeather = citiesWeather.FirstOrDefault(p => p.City == city);
+                if (cityWeather == null)
+                {
+                    return NotFound();
+                }
+                return Ok(cityWeather.warning);
+            }
+        }
+
+        // update a city weather condition
+        [Route("update/{city:alpha}")]
+        public IHttpActionResult PutUpdateCityWeatherCondition(String city, CurrentWeather cityWeather)                  // listing will be in request body
+        {
+            if (ModelState.IsValid)
+            {
+                lock (citiesWeather)
+                {
+                    Console.WriteLine("city: " + city + " CityWeather: " + cityWeather);
+                    if (city == cityWeather.City)
+                    {
+                        var record = citiesWeather.SingleOrDefault(l => l.City.ToUpper() == city.ToUpper());
+                        if (record == null)
+                        {
+                            return NotFound();
+                        }
+                        else
+                        {
+                            record.warning = cityWeather.warning;               // update price
+                            return Ok(record);                          // or 204 with no content
+                        }
+                    }
+                    else
+                    {
+                        return BadRequest("invalid City");        // 400
+                    }
+                }
+            }
+            else
+            {
+                return BadRequest(ModelState);
+            }
+        }
+
+        // POST /weather, request body contains city listing serialized as XML or JSON
+        [Route("")]
+        public IHttpActionResult PostAddPost(CurrentWeather cityWeather)
+        {
+            if (ModelState.IsValid) 
+            {
+                lock (citiesWeather)                                                    // make thread safe
+                {
+                    // check for duplicate
+                    // LINQ query - get record
+                    var record = citiesWeather.SingleOrDefault(l => l.City.ToUpper() == cityWeather.City.ToUpper());
+                    if (record == null)
+                    {
+                        citiesWeather.Add(cityWeather);                                         // add to list
+
+                        // create http response with Created status code and forum post serialised as content and Location header set to URI for new resource
+                        string uri = Request.RequestUri.ToString() + "/id/" + cityWeather.City;
+                        return Created(uri, cityWeather);
+                    }
+                    else
+                    {
+                        return BadRequest("resource already exists");      // 400, already exists
+                    }
+                }
+            }
+            else
+            {
+                return BadRequest();
+            }
+        }
+
+        // delete a city
+        [Route("delete/{city:alpha}")]
+        public IHttpActionResult DeleteListing(String city)
+        {
+            lock (citiesWeather)                                                    // make thread safe
+            {
+                var record = citiesWeather.SingleOrDefault(l => l.City.ToUpper() == city.ToUpper());
+                if (record != null)
+                {
+                    citiesWeather.Remove(record);
+                    return Ok(citiesWeather.OrderBy(s => s.City).ToList());
+                }
+                else
+                {
+                    return NotFound();
+                }
+            }
+        }
+
+    }
+}
